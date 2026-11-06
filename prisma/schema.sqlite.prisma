@@ -1,0 +1,289 @@
+// Generated from prisma/schema.prisma by scripts/write-sqlite-schema.mjs. Do not edit.
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String               @id @default(cuid())
+  email        String               @unique
+  name         String
+  passwordHash String
+  orgName      String
+  isDemo            Boolean              @default(false)
+  plan              String               @default("free")
+  oidcSubject       String?              @unique
+  createdAt         DateTime             @default(now())
+  sessions          Session[]
+  sites             Site[]
+  scans             Scan[]
+  reviews           DependencyReview[]
+  reports           Report[]
+  schedules         ScanSchedule[]
+  memberships       Membership[]         @relation("MembershipUser")
+  hostedMemberships Membership[]         @relation("MembershipWorkspace")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model Site {
+  id            String         @id @default(cuid())
+  userId        String
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name          String
+  hostname      String
+  ingestPrefix  String
+  ingestKeyHash String         @unique
+  isDemo        Boolean        @default(false)
+  createdAt     DateTime       @default(now())
+  events        TrafficEvent[]
+  agentEvents   AgentEvent[]
+  policy        Policy?
+
+  @@unique([userId, hostname])
+}
+
+model Scan {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  url          String
+  status       String
+  score        Int      @default(0)
+  findingsJson String   @default("[]")
+  passesJson   String   @default("[]")
+  metaJson     String   @default("{}")
+  error        String?
+  isDemo       Boolean  @default(false)
+  createdAt    DateTime @default(now())
+}
+
+model DependencyReview {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind         String
+  packageCount Int
+  vulnCount    Int
+  resultJson   String
+  isDemo       Boolean  @default(false)
+  createdAt    DateTime @default(now())
+}
+
+model TrafficEvent {
+  id           String   @id
+  siteId       String
+  site         Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  seq          Int
+  occurredAt   String
+  method       String
+  path         String
+  status       Int?
+  ip           String
+  userAgent    String
+  referer      String   @default("")
+  agent        String   @default("")
+  vendor       String   @default("")
+  category     String
+  confidence   String
+  source       String
+  anomalyCodes String   @default("")
+  anomalyJson  String   @default("[]")
+  prevHash     String
+  hash         String
+  isDemo       Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  @@unique([siteId, seq])
+  @@index([siteId, occurredAt])
+}
+
+model AgentEvent {
+  id           String   @id
+  siteId       String
+  site         Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  seq          Int
+  occurredAt   String
+  agentName    String
+  tool         String
+  outcome      String
+  promptHash   String
+  findingsJson String
+  decision     String   @default("flag")
+  prevHash     String
+  hash         String
+  isDemo       Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  @@unique([siteId, seq])
+}
+
+model Policy {
+  id        String   @id @default(cuid())
+  siteId    String   @unique
+  site      Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  rulesJson String
+  updatedAt DateTime @updatedAt
+}
+
+model Report {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  score       Int
+  payloadJson String
+  isDemo      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+model ScanSchedule {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  url        String
+  cadence    String    @default("weekly")
+  enabled    Boolean   @default(true)
+  nextRunAt  DateTime
+  lastRunAt  DateTime?
+  lastStatus String?
+  lastError  String?
+  createdAt  DateTime  @default(now())
+
+  @@unique([userId, url])
+  @@index([enabled, nextRunAt])
+}
+
+model FeedSnapshot {
+  id        String   @id
+  payload   String
+  fetchedAt DateTime
+  updatedAt DateTime @updatedAt
+}
+
+model RateHit {
+  id        String   @id @default(cuid())
+  key       String
+  createdAt DateTime @default(now())
+
+  @@index([key, createdAt])
+}
+
+model Membership {
+  id          String   @id @default(cuid())
+  workspaceId String
+  workspace   User     @relation("MembershipWorkspace", fields: [workspaceId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation("MembershipUser", fields: [userId], references: [id], onDelete: Cascade)
+  role        String
+  createdAt   DateTime @default(now())
+
+  @@unique([workspaceId, userId])
+}
+
+model Invitation {
+  id          String    @id @default(cuid())
+  workspaceId String
+  email       String
+  role        String
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([workspaceId, email])
+}
+
+model AuditEvent {
+  id          String   @id @default(cuid())
+  workspaceId String
+  actorId     String
+  action      String
+  target      String
+  createdAt   DateTime @default(now())
+
+  @@index([workspaceId, createdAt])
+}
+
+model PaymentClaim {
+  id            String    @id @default(cuid())
+  userId        String
+  transactionId String
+  payerEmail    String
+  note          String    @default("")
+  status        String    @default("pending")
+  reviewNote    String    @default("")
+  reviewedAt    DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([userId, status])
+}
+
+model SecurityReviewRequest {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  company   String
+  message   String
+  status    String   @default("new")
+  createdAt DateTime @default(now())
+}
+
+model ApiKey {
+  id         String    @id @default(cuid())
+  userId     String
+  name       String
+  prefix     String
+  keyHash    String    @unique
+  scopes     String
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model WebhookEndpoint {
+  id             String    @id @default(cuid())
+  userId         String
+  url            String
+  secretCipher   String
+  enabled        Boolean   @default(true)
+  lastStatus     Int?
+  lastError      String?
+  lastDeliveryAt DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@index([userId, enabled])
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  title     String
+  body      String
+  href      String    @default("")
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model GuardrailPolicy {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  rulesJson String
+  updatedAt DateTime @updatedAt
+}

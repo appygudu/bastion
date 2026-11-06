@@ -1,0 +1,2 @@
+export const THREAT_NOTE =
+  "These records are the documents fetched from the listed sources. They are not a complete list of attacks. A missing record is not proof that nothing happened. Text labelled general guidance is Bastion's wording from the source fields, not a statement by the authority. Sector labels are inferred from words in that text. Regions are left blank unless a source states them, and none of these feeds state a region.";

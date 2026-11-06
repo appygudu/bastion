@@ -1,0 +1,7 @@
+node_modules
+.next
+.git
+agent-tools
+prisma/*.db
+.env
+coverage
